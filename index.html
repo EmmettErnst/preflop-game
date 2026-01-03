@@ -274,35 +274,34 @@
 
       const diff = Math.abs(actual - g);
 
-      // Scoring rule:
-      // - Rank mode: exact match
-      // - Percentile mode: within 2 points counts as correct
-      const correct = (mode === "rank") ? (actual === g) : (diff <= 2);
+// For percentile mode, show direction: lower is better
+let directionText = "";
+if (mode === "pct") {
+  const signed = actual - g; // positive means actual is worse than guessed
+  if (signed === 0) {
+    directionText = "Exactly right.";
+  } else if (signed > 0) {
+    directionText = `You predicted <b>${signed}</b> points <b>better</b> than it actually was.`;
+  } else {
+    directionText = `You predicted <b>${Math.abs(signed)}</b> points <b>worse</b> than it actually was.`;
+  }
+}
 
-      if (correct) {
-        score += 1;
-        streak += 1;
-        if (streak > bestStreak) bestStreak = streak;
-      } else {
-        streak = 0;
-      }
-      setStats();
+const label = (mode === "rank") ? "Actual rank" : "Actual percentile";
 
-      const cls = correct ? "good" : "bad";
-      const label = (mode === "rank") ? "Actual rank" : "Actual percentile";
-
-      result.innerHTML = `
-        <div class="${cls}">
-          ${label}: <b>${actual}</b> (you guessed <b>${g}</b>, off by <b>${diff}</b>)
-        </div>
-        <div class="muted">
-          Rank: <b>#${actualRank}</b> |
-          Percentile: <b>${actualPct}</b> |
-          Sklansky group: <b>${current.data["Sklansky Group"]}</b> |
-          Win: <b>${current.data["% win"]}</b> |
-          Tie: <b>${current.data["% tie"]}</b>
-        </div>
-      `;
+result.innerHTML = `
+  <div class="${cls}">
+    ${label}: <b>${actual}</b> (you guessed <b>${g}</b>)
+    ${mode === "pct" ? `<div class="muted">${directionText}</div>` : `, off by <b>${diff}</b>`}
+  </div>
+  <div class="muted">
+    Rank: <b>#${actualRank}</b> |
+    Percentile: <b>${actualPct}</b> |
+    Sklansky group: <b>${current.data["Sklansky Group"]}</b> |
+    Win: <b>${current.data["% win"]}</b> |
+    Tie: <b>${current.data["% tie"]}</b>
+  </div>
+`;
     }
 
     function resetScore() {
