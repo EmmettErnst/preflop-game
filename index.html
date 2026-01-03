@@ -31,7 +31,7 @@
     }
     .row { display:flex; gap: 12px; flex-wrap: wrap; align-items: end; }
     label { display:block; font-size: 12px; opacity:.85; margin: 0 0 6px; }
-    input, button {
+    input, button, select {
       border-radius: 12px; border: 1px solid rgba(255,255,255,.16);
       background: rgba(255,255,255,.08); color:#e8eef7;
       padding: 10px 12px; font-size: 14px;
@@ -61,7 +61,7 @@
   <div class="wrap">
     <h1>Preflop Hand Rank Trainer</h1>
     <div class="muted">
-      You get 2 cards. Guess the 169-hand rank (1 is best, 169 is worst). Then reveal the answer.
+      You get 2 cards. Guess the rank (1–169) or percentile (0–100). Then reveal the answer.
     </div>
 
     <div class="cardrow" id="cardRow"></div>
@@ -69,9 +69,18 @@
     <div class="panel">
       <div class="row">
         <div>
-          <label for="guessRank">Your guess (1–169)</label>
+          <label for="mode">Mode</label>
+          <select id="mode">
+            <option value="rank" selected>Rank (1–169)</option>
+            <option value="pct">Percentile (0–100, lower is better)</option>
+          </select>
+        </div>
+
+        <div>
+          <label id="guessLabel" for="guessRank">Your guess (1–169)</label>
           <input id="guessRank" inputmode="numeric" autocomplete="off" placeholder="e.g., 24" />
         </div>
+
         <button id="revealBtn">Reveal</button>
         <button id="nextBtn">Next hand</button>
         <button id="resetBtn">Reset score</button>
@@ -116,7 +125,9 @@
       for (const r of RANKS) for (const s of SUITS) deck.push({rank:r, suit:s});
       return deck;
     }
+
     function randInt(n) { return Math.floor(Math.random() * n); }
+
     function drawTwo() {
       const deck = makeDeck();
       const a = deck.splice(randInt(deck.length), 1)[0];
@@ -181,11 +192,26 @@
     const scoreEl = document.getElementById("score");
     const streakEl = document.getElementById("streak");
     const bestStreakEl = document.getElementById("bestStreak");
+    const modeEl = document.getElementById("mode");
+    const guessLabel = document.getElementById("guessLabel");
 
     function setStats() {
       scoreEl.textContent = String(score);
       streakEl.textContent = String(streak);
       bestStreakEl.textContent = String(bestStreak);
+    }
+
+    function syncModeUI() {
+      const mode = modeEl.value;
+      if (mode === "rank") {
+        guessLabel.textContent = "Your guess (1–169)";
+        guessRank.placeholder = "e.g., 24";
+        guessRank.inputMode = "numeric";
+      } else {
+        guessLabel.textContent = "Your guess (0–100, lower is better)";
+        guessRank.placeholder = "e.g., 62";
+        guessRank.inputMode = "numeric";
+      }
     }
 
     function newHand() {
@@ -210,25 +236,50 @@
     function reveal() {
       if (!current || revealed) return;
 
-      const g = Number(String(guessRank.value).trim());
-      if (!Number.isFinite(g) || g < 1 || g > 169) {
-        result.innerHTML = `<span class="bad">Enter a number from 1 to 169.</span>`;
+      const raw = String(guessRank.value).trim();
+      const mode = modeEl.value;
+
+      const g = Number(raw);
+      if (!Number.isFinite(g)) {
+        result.innerHTML = `<span class="bad">Enter a number.</span>`;
         return;
       }
-
-      revealed = true;
 
       if (!current.data) {
         result.innerHTML = `<div class="bad">This hand label (${current.label}) was not found in the rankings map.</div>`;
         streak = 0;
         setStats();
+        revealed = true;
         return;
       }
 
-      const actual = Number(current.data.Rank);
+      const actualRank = Number(current.data.Rank);
+      const actualPct = Number(current.data.Percentile);
+      const actual = (mode === "rank") ? actualRank : actualPct;
+
+      // Validate guess range
+      if (mode === "rank") {
+        if (g < 1 || g > 169) {
+          result.innerHTML = `<span class="bad">Enter a number from 1 to 169.</span>`;
+          return;
+        }
+      } else {
+        if (g < 0 || g > 100) {
+          result.innerHTML = `<span class="bad">Enter a number from 0 to 100.</span>`;
+          return;
+        }
+      }
+
+      revealed = true;
+
       const diff = Math.abs(actual - g);
 
-      if (actual === g) {
+      // Scoring rule:
+      // - Rank mode: exact match
+      // - Percentile mode: within 2 points counts as correct
+      const correct = (mode === "rank") ? (actual === g) : (diff <= 2);
+
+      if (correct) {
         score += 1;
         streak += 1;
         if (streak > bestStreak) bestStreak = streak;
@@ -237,13 +288,16 @@
       }
       setStats();
 
-      const cls = (actual === g) ? "good" : "bad";
+      const cls = correct ? "good" : "bad";
+      const label = (mode === "rank") ? "Actual rank" : "Actual percentile";
+
       result.innerHTML = `
         <div class="${cls}">
-          Actual rank: <b>#${actual}</b> (you guessed <b>#${g}</b>, off by <b>${diff}</b>)
+          ${label}: <b>${actual}</b> (you guessed <b>${g}</b>, off by <b>${diff}</b>)
         </div>
         <div class="muted">
-          Percentile: <b>${current.data.Percentile}</b> |
+          Rank: <b>#${actualRank}</b> |
+          Percentile: <b>${actualPct}</b> |
           Sklansky group: <b>${current.data["Sklansky Group"]}</b> |
           Win: <b>${current.data["% win"]}</b> |
           Tie: <b>${current.data["% tie"]}</b>
@@ -264,15 +318,21 @@
     nextBtn.addEventListener("click", newHand);
     resetBtn.addEventListener("click", resetScore);
 
+    modeEl.addEventListener("change", () => {
+      syncModeUI();
+      guessRank.value = "";
+      guessRank.focus();
+    });
+
     document.addEventListener("keydown", (e) => {
       if (e.key === "Enter") reveal();
       if (e.key.toLowerCase() === "n") newHand();
     });
 
     // Init
+    syncModeUI();
     setStats();
     newHand();
   </script>
 </body>
 </html>
-
