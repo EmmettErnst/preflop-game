@@ -289,34 +289,20 @@
       setStats();
 
       const cls = correct ? "good" : "bad";
-const headerLabel = (mode === "rank") ? "Actual rank" : "Actual percentile";
+ const label = (mode === "rank") ? "Actual rank" : "Actual percentile";
 
-// Extra feedback for percentile mode (lower = better)
-let directionLine = "";
-if (mode === "pct") {
-  const signed = actual - g; // positive means actual is worse (higher) than guessed
-  if (signed === 0) {
-    directionLine = "Exactly right.";
-  } else if (signed > 0) {
-    directionLine = `The hand was <b>${signed}</b> points <b>worse</b> than you predicted.`;
-  } else {
-    directionLine = `The hand was <b>${Math.abs(signed)}</b> points <b>better</b> than you predicted.`;
-  }
-}
-
-result.innerHTML = `
-  <div class="${cls}">
-    ${headerLabel}: <b>${actual}</b> (you guessed <b>${g}</b>${mode === "rank" ? `, off by <b>${diff}</b>` : ""})
-    ${mode === "pct" ? `<div class="muted">${directionLine}</div>` : ""}
-  </div>
-  <div class="muted">
-    Rank: <b>#${actualRank}</b> |
-    Percentile: <b>${actualPct}</b> |
-    Sklansky group: <b>${current.data["Sklansky Group"]}</b> |
-    Win: <b>${current.data["% win"]}</b> |
-    Tie: <b>${current.data["% tie"]}</b>
-  </div>
-`;
+      result.innerHTML = `
+        <div class="${cls}">
+          ${label}: <b>${actual}</b> (you guessed <b>${g}</b>, off by <b>${diff}</b>)
+        </div>
+        <div class="muted">
+          Rank: <b>#${actualRank}</b> |
+          Percentile: <b>${actualPct}</b> |
+          Sklansky group: <b>${current.data["Sklansky Group"]}</b> |
+          Win: <b>${current.data["% win"]}</b> |
+          Tie: <b>${current.data["% tie"]}</b>
+        </div>
+      `;
     }
 
     function resetScore() {
